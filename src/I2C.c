@@ -111,7 +111,8 @@ void I2C1_EV_IRQHandler(void) {
 		} else if(I2C_state == read){
 			//the following is the read process specified by the F4 reference
 			//manual page 482-483
-				if(bytes_total > 2){
+			I2C1->SR2;
+				/*if(bytes_total > 2){
 					I2C1->SR2; //needs to read SR2 to clear ADDR bit and continue
 					if(bytes_total > 3){
 						*I2C_inputBuffer = I2C1->DR;
@@ -133,7 +134,7 @@ void I2C1_EV_IRQHandler(void) {
 					I2C1->SR2; //needs to read SR2 to clear ADDR bit and continue
 					I2C1->CR1 |= I2C_CR1_STOP;
 					*I2C_inputBuffer = I2C1->DR;
-				}
+				}*/
 		}
 	//Writes data to I2C
 	}else if( ((I2C1->SR1 & I2C_SR1_TXE) == I2C_SR1_TXE) && ((I2C1->SR1 & I2C_SR1_BTF) == I2C_SR1_BTF) ){
@@ -150,13 +151,12 @@ void I2C1_EV_IRQHandler(void) {
 			I2C_state = nothing;
 		}
 	//Reads I2C data
-	}else if( ((I2C1->SR1 & I2C_SR1_RXNE) == I2C_SR1_RXNE) && ((I2C1->SR1 & I2C_SR1_BTF) != I2C_SR1_BTF) ){
-		if(bytes_total){
+	}else if( ((I2C1->SR1 & I2C_SR1_RXNE) == I2C_SR1_RXNE) /*&& ((I2C1->SR1 & I2C_SR1_BTF) != I2C_SR1_BTF)*/ ){
+		if(bytes_total > 1){
 			*I2C_inputBuffer = I2C1->DR;
 			I2C_inputBuffer++;
 			bytes_total--;
 		} else{
-			bytes_count = 0;
 			I2C1->CR2 &= ~(I2C_CR2_ITBUFEN | I2C_CR2_ITEVTEN);
 			I2C1->CR1 |= I2C_CR1_ACK;
 			I2C1->CR1 &= ~(I2C_CR1_POS);
@@ -166,17 +166,7 @@ void I2C1_EV_IRQHandler(void) {
 		}
 	//Waits for byte transfer finished bit
 	}else if((I2C1->SR1 & I2C_SR1_BTF) == I2C_SR1_BTF){
-		/*if(I2C_state == write){
-			if((I2C1->SR1 & I2C_SR1_TXE) == I2C_SR1_TXE){
-				//sets stop condition
-				bytes_count = 0;
-				I2C1->CR1 |= I2C_CR1_STOP;
-				I2C1->CR2 &= ~(I2C_CR2_ITBUFEN | I2C_CR2_ITEVTEN);
-				I2C_Cmd(I2C1, DISABLE);
-				I2C_DeInit(I2C1);
-				I2C_state = nothing;
-			}
-		} else */if((bytes_total == 3) && (I2C_state == read)){
+		/*if((bytes_total == 3) && (I2C_state == read)){
 			I2C1->CR1 &= ~(I2C_CR1_ACK);
 			*I2C_inputBuffer = I2C1->DR;
 			I2C_inputBuffer++;
@@ -186,8 +176,8 @@ void I2C1_EV_IRQHandler(void) {
 				*I2C_inputBuffer = I2C1->DR;
 				I2C_inputBuffer++;
 				bytes_total--;
-			}
+			}*/
 		}
 	}
-}
+
 
