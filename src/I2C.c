@@ -20,15 +20,15 @@ uint8_t I2C_OutputBuffer[I2C_OUTPUT_BUFFER_SIZE];
 uint8_t *I2C_inputBuffer;
 
 //bytes count
-uint8_t bytes_count = 0;
+volatile uint8_t bytes_count = 0;
 
 //slave address
-uint8_t slave_address;
+volatile uint8_t slave_address;
 
 //bytes total
-uint8_t bytes_total;
+volatile uint8_t bytes_total;
 
-I2C_state_t I2C_state = nothing;
+volatile I2C_state_t I2C_state = nothing;
 
 extern void I2C_setup(){
 	//Enable clock for GPIOB
@@ -74,6 +74,10 @@ static void I2C_init(){
 
 extern void I2C_read(uint8_t address, uint8_t numBytes, uint8_t *message){
 	while(I2C_state != nothing);
+	int i = 10000;
+	while (i > 0){
+		i--;
+	}
 	I2C_init();
 	I2C_state = read;
 	slave_address = address;
@@ -111,30 +115,9 @@ void I2C1_EV_IRQHandler(void) {
 		} else if(I2C_state == read){
 			//the following is the read process specified by the F4 reference
 			//manual page 482-483
+			I2C1->CR1 &= ~(I2C_CR1_ACK);
+			I2C1->CR1 |= I2C_CR1_POS;
 			I2C1->SR2;
-				/*if(bytes_total > 2){
-					I2C1->SR2; //needs to read SR2 to clear ADDR bit and continue
-					if(bytes_total > 3){
-						*I2C_inputBuffer = I2C1->DR;
-						I2C_inputBuffer++;
-						bytes_total--;
-					}
-				} else if(bytes_total == 2){
-					I2C1->CR1 &= ~(I2C_CR1_ACK);
-					I2C1->CR1 |= I2C_CR1_POS;
-					I2C1->SR2; //needs to read SR2 to clear ADDR bit and continue
-					I2C1->CR1 |= I2C_CR1_STOP;
-					if(bytes_total != 0){
-						*I2C_inputBuffer = I2C1->DR;
-						I2C_inputBuffer++;
-						bytes_total--;
-					}
-				}else if(bytes_total == 1){
-					I2C1->CR1 &= ~(I2C_CR1_ACK);
-					I2C1->SR2; //needs to read SR2 to clear ADDR bit and continue
-					I2C1->CR1 |= I2C_CR1_STOP;
-					*I2C_inputBuffer = I2C1->DR;
-				}*/
 		}
 	//Writes data to I2C
 	}else if( ((I2C1->SR1 & I2C_SR1_TXE) == I2C_SR1_TXE) && ((I2C1->SR1 & I2C_SR1_BTF) == I2C_SR1_BTF) ){
@@ -151,8 +134,9 @@ void I2C1_EV_IRQHandler(void) {
 			I2C_state = nothing;
 		}
 	//Reads I2C data
-	}else if( ((I2C1->SR1 & I2C_SR1_RXNE) == I2C_SR1_RXNE) /*&& ((I2C1->SR1 & I2C_SR1_BTF) != I2C_SR1_BTF)*/ ){
+	}else if( ((I2C1->SR1 & I2C_SR1_RXNE) == I2C_SR1_RXNE) && ((I2C1->SR1 & I2C_SR1_BTF) == I2C_SR1_BTF)){
 		if(bytes_total > 1){
+			I2C1->CR1 |= I2C_CR1_STOP;
 			*I2C_inputBuffer = I2C1->DR;
 			I2C_inputBuffer++;
 			bytes_total--;
@@ -166,18 +150,7 @@ void I2C1_EV_IRQHandler(void) {
 		}
 	//Waits for byte transfer finished bit
 	}else if((I2C1->SR1 & I2C_SR1_BTF) == I2C_SR1_BTF){
-		/*if((bytes_total == 3) && (I2C_state == read)){
-			I2C1->CR1 &= ~(I2C_CR1_ACK);
-			*I2C_inputBuffer = I2C1->DR;
-			I2C_inputBuffer++;
-			bytes_total--; //there should now be two bytes left to read
-			I2C1->CR1 |= I2C_CR1_STOP;
-			if(bytes_total != 0){
-				*I2C_inputBuffer = I2C1->DR;
-				I2C_inputBuffer++;
-				bytes_total--;
-			}*/
-		}
 	}
+}
 
 
